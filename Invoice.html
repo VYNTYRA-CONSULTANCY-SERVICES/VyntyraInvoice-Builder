@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice & Annexures - Vyntyra Consultancy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Libre+Barcode+39+Text&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Global Reset */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        /* Print Setup */
+        @page {
+            size: A4;
+            margin: 0; /* Removes default browser margins */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #525252;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            margin: 0;
+            padding: 0;
+        }
+
+        .barcode {
+            font-family: 'Libre Barcode 39 Text', cursive;
+            font-size: 48px;
+            color: #333;
+            line-height: 1;
+        }
+
+        .a4-container {
+            width: 210mm;
+            height: 296mm; /* Fixed height for strict A4 fit */
+            background: white;
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden; /* Prevents content spillover */
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            padding: 15mm 15mm 25mm 20mm; /* Increased bottom padding for footer space */
+        }
+
+        .sidebar-decor {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 12mm;
+            height: 100%;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            z-index: 10;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 120px;
+            color: rgba(0,0,0,0.03);
+            font-weight: 800;
+            z-index: 0;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        /* Logo Styling */
+        .brand-logo {
+            max-height: 80px;
+            width: auto;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+
+        /* Performance Metrics Grid */
+        .metric-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .metric-score {
+            font-size: 24px;
+            font-weight: 800;
+            color: #10b981; /* Green */
+            border: 4px solid #10b981;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px auto;
+        }
+
+        /* Footer Positioning */
+        .page-footer {
+            position: absolute;
+            bottom: 10mm;
+            left: 0;
+            width: 100%;
+            padding-left: 20mm; /* Match container padding */
+            padding-right: 15mm;
+            text-align: center;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+            .a4-container {
+                margin: 0;
+                width: 210mm;
+                height: 296mm; /* Ensures exact fit in print preview */
+                box-shadow: none;
+                page-break-after: always;
+            }
+            .no-print {
+                display: none !important;
+            }
+            /* Remove gap between pages in print view */
+            .page-break {
+                page-break-before: always;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Control Bar -->
+    <div class="no-print fixed top-0 left-0 w-full bg-slate-900 text-white p-3 shadow-lg z-50 flex justify-between items-center border-b border-slate-700">
+        <div class="flex items-center gap-4">
+            <span class="font-bold text-lg tracking-tight">Invoice System</span>
+            <span class="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">Vyntyra</span>
+        </div>
+        <button onclick="window.print()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-6 rounded shadow-md transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print / Save PDF
+        </button>
+    </div>
+
+    <div class="h-16 no-print"></div>
+
+    <!-- ========================== PAGE 1: INVOICE ========================== -->
+    <div class="a4-container">
+        <div class="sidebar-decor"></div>
+        <div class="watermark">VYNTYRA</div>
+
+        <!-- Header -->
+        <div class="flex justify-between items-start mb-1 relative z-10">
+            <div>
+                <!-- LOGO INSERTION -->
+                <img src="https://healthy-fuchsia-3ihbdasf2f-vpujuawyth.edgeone.dev/logo-new.png" alt="Vyntyra Logo" class="brand-logo">
+                
+                <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-none">VYNTYRA</h2>
+                <p class="text-[15px] font-bold text-slate-500 tracking-widest uppercase mb-3">Consultancy Services Pvt. Ltd.</p>
+                
+                <div class="text-xs text-slate-600 leading-relaxed max-w-[250px]">
+                    Unit no 601, 5th Floor, Grand Palace,<br>
+                    Plot no 238 & 239, Dwaraka Nagar,<br>
+                    Visakhapatnam, AP 530016.<br>
+                    <strong>+91 9390515106</strong>
+                </div>
+            </div>
+            <div class="text-right">
+                <h1 class="text-5xl font-black text-slate-200 uppercase tracking-tighter mb-2">Invoice</h1>
+                <!-- Dynamic Barcode of Invoice Number -->
+                <div class="barcode opacity-80">INV-2025-0VC1</div>
+                
+                <div class="mt-4 grid grid-cols-1 gap-1 text-sm">
+                    <div class="flex justify-end gap-4">
+                        <span class="font-semibold text-slate-400 uppercase text-xs pt-1">Date</span>
+                        <span class="font-bold text-slate-800" id="currentDate"></span>
+                    </div>
+                    <div class="flex justify-end gap-4">
+                        <span class="font-semibold text-slate-400 uppercase text-xs pt-1">Invoice #</span>
+                        <span class="font-bold text-slate-800">INV-2025-0VC1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bill To Section -->
+        <div class="bg-slate-50 rounded-r-xl border-l-4 border-slate-800 p-5 mb-8 relative z-10">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Billed To Client</h3>
+            <div class="text-lg font-bold text-slate-900">Ignite Wheels Car Rentals</div>
+            <div class="text-slate-600 text-sm mt-1">
+                Attn: Asif Mohammed<br>
+                Shiridhi Sai Nagar, Chandhrayyaya Colony, Balaga<br>
+                Srikakulam, Andhra Pradesh 532001
+            </div>
+            <div class="text-slate-600 text-xs mt-2 pt-2 border-t border-slate-200">
+                <div class="font-medium">📞 +91 7093393435, +91 7093350435</div>
+                <div>📧 ignitewheelsselfdrivercars@gmail.com</div>
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="relative z-10">
+            <table class="w-full mb-8">
+                <thead>
+                    <tr class="border-b-2 border-slate-800">
+                        <th class="py-2 text-left font-bold text-slate-900 text-sm uppercase tracking-wider w-2/3">Description</th>
+                        <th class="py-2 text-right font-bold text-slate-900 text-sm uppercase tracking-wider">Amount (INR)</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm">
+                    <!-- Item 1 -->
+                    <tr class="border-b border-slate-100">
+                        <td class="py-4 pr-4">
+                            <div class="font-bold text-slate-800 text-base">"Standard Static" Web Development Package</div>
+                            <div class="text-slate-500 mt-1 space-y-1">
+                                <p>&bull; 5 Pages (Mobile Responsive), <span class="font-semibold text-slate-700">Video Background</span>, Social Links</p>
+                                <p>&bull; <span class="font-semibold text-slate-700">Lighthouse Performance & Google SEO</span></p>
+                                <p>&bull; Tech Stack: HTML, CSS, JavaScript</p>
+                                <p>&bull; <span class="text-emerald-600 font-medium">IGST (5%) Included</span></p>
+                            </div>
+                        </td>
+                        <td class="py-4 text-right font-medium text-slate-700 align-top">4,999.00</td>
+                    </tr>
+
+                    <!-- Item 2 -->
+                    <tr class="border-b border-slate-100">
+                        <td class="py-4 pr-4">
+                            <div class="font-bold text-slate-800 text-base">Premium Add-ons & Integration Bundle</div>
+                            <div class="text-slate-500 mt-1 space-y-1">
+                                <p>&bull; Google Maps Integration</p>
+                                <p>&bull; Performance Suite (Google Search Console)</p>
+                                <p>&bull; Dual Cloud Hosting Setup (Vercel & Netlify)</p>
+                                <p class="text-xs text-emerald-600 font-bold mt-1">★ REFERRAL OFFER APPLIED (SU25BVCS)</p>
+                            </div>
+                        </td>
+                        <td class="py-4 text-right font-medium text-emerald-600 align-top">FREE</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totals -->
+        <div class="absolute bottom-[30mm] left-0 w-full pl-[1mm] pr-[10mm] flex justify-end z-20">
+            <div class="w-2/5 bg-slate-900 text-white rounded-lg p-6 shadow-xl">
+                <div class="flex justify-between items-center mb-2 text-sm text-slate-300">
+                    <span>Subtotal</span>
+                    <span>₹4,999.00</span>
+                </div>
+                <div class="flex justify-between items-center mb-4 text-xs text-emerald-400">
+                    <span>Discount/Adjustments</span>
+                    <span>Included</span>
+                </div>
+                <div class="border-t border-slate-700 pt-4 flex justify-between items-end">
+                    <div>
+                        <span class="block text-xs uppercase text-slate-400">Total Payable</span>
+                        <span class="text-3xl font-bold">₹4,999</span>
+                    </div>
+                    <div class="text-right text-xs text-slate-400">
+                        Inclusive of all<br>services & charges
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="page-footer">
+            <p class="text-xs text-slate-400">
+                &copy; <span id="year"></span> VYNTYRA CONSULTANCY SERVICES PVT.LTD. All rights reserved.<br>
+                <span class="font-bold text-slate-500">Computer Generated Invoice.</span> Subject to terms and conditions.
+            </p>
+        </div>
+    </div>
+
+    <!-- ========================== PAGE 2: ANNEXURE A ========================== -->
+    <div class="a4-container page-break">
+        <div class="sidebar-decor"></div>
+
+        <!-- Header with Logo & Barcode -->
+        <div class="flex justify-between items-start mb-8 border-b-2 border-slate-100 pb-4">
+            <img src="https://healthy-fuchsia-3ihbdasf2f-vpujuawyth.edgeone.dev/logo-new.png" alt="Vyntyra Logo" class="brand-logo h-12">
+            <div class="text-right">
+                <h1 class="text-3xl font-black text-slate-900">ANNEXURE A</h1>
+                <!-- Added Barcode -->
+                <div class="barcode opacity-80" style="font-size: 32px; margin-top: 5px; margin-bottom: 5px;">INV-2025-0VC1</div>
+                <p class="text-slate-500 text-sm font-medium">Scope of Work & Commitments</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6">
+            
+            <!-- 1. Hosting -->
+            <div class="bg-white rounded-lg">
+                <h3 class="flex items-center text-base font-bold text-slate-900 mb-2">
+                    <span class="bg-slate-900 text-white w-6 h-6 flex items-center justify-center rounded mr-3 text-xs">01</span>
+                    Hosting & Domain Deliverables
+                </h3>
+                <div class="ml-9 bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
+                    <p class="mb-2 font-semibold text-slate-700">Dual Cloud Platform Deployment:</p>
+                    <ul class="space-y-1 mb-3 text-xs">
+                        <li class="flex items-center text-blue-600 underline">
+                            <a href="https://ignitewheels.vercel.app/" target="_blank">https://ignitewheels.vercel.app/</a>
+                        </li>
+                        <li class="flex items-center text-blue-600 underline">
+                            <a href="https://ignitewheels.netlify.app/" target="_blank">https://ignitewheels.netlify.app/</a>
+                        </li>
+                    </ul>
+                    <p class="text-[10px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-100">
+                        <strong>Note:</strong> Custom domains must be purchased by the client. We provide configuration support.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 2. Future Phase (Bike Rental) -->
+            <div>
+                <h3 class="flex items-center text-base font-bold text-slate-900 mb-2">
+                    <span class="bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded mr-3 text-xs">02</span>
+                    Future Phase Commitment
+                </h3>
+                <div class="ml-9 border border-indigo-100 bg-indigo-50 p-4 rounded-lg">
+                    <div class="flex items-start">
+                        <div class="text-indigo-600 mt-1 mr-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-indigo-900 text-sm mb-1">Addition of "Bike Rental" Page</h4>
+                            <p class="text-xs text-indigo-800 leading-relaxed">
+                                As agreed within this deal, Vyntyra Consultancy Services commits to designing and developing one (1) additional webpage dedicated to <strong>Bike Rentals</strong>. This will be integrated into the existing website in a future update upon client request, at <strong>no additional cost</strong>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Service Terms -->
+            <div>
+                <h3 class="flex items-center text-base font-bold text-slate-900 mb-2">
+                    <span class="bg-slate-900 text-white w-6 h-6 flex items-center justify-center rounded mr-3 text-xs">03</span>
+                    Service & Warranty Terms
+                </h3>
+                <div class="ml-9 grid grid-cols-2 gap-4">
+                    <div class="border border-emerald-100 bg-emerald-50 p-3 rounded-lg">
+                        <h4 class="font-bold text-emerald-800 text-xs mb-1">Extended Coverage</h4>
+                        <div class="text-xl font-bold text-emerald-600 mb-1">6 Months</div>
+                        <p class="text-[10px] text-emerald-700">From date of submission. Covers bug fixes & stability.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment QR Section -->
+            <div class="mt-4 border-t border-dashed border-slate-200 pt-6">
+                <div class="flex items-center justify-between bg-slate-900 text-white p-5 rounded-xl shadow-lg">
+                    <div>
+                        <h3 class="text-lg font-bold mb-1">Scan to Pay</h3>
+                        <p class="text-slate-400 text-xs mb-3">UPI: GPay, PhonePe, Paytm</p>
+                        <div class="text-xs font-mono bg-slate-800 px-3 py-1 rounded inline-block">
+                            <span class="text-emerald-400">9390515106@upi</span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-2 rounded-lg">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=9390515106@upi&pn=VyntyraConsultancy&cu=INR&am=4999" 
+                             alt="Payment QR Code" 
+                             class="w-24 h-24 object-contain">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="page-footer">
+            <p class="text-xs text-slate-400">
+                &copy; <span id="year2"></span> VYNTYRA CONSULTANCY SERVICES PVT.LTD. All rights reserved.<br>
+                <span class="font-bold text-slate-500">Computer Generated Invoice.</span> Subject to terms and conditions.
+            </p>
+        </div>
+    </div>
+
+    <!-- ========================== PAGE 3: ANNEXURE B ========================== -->
+    <div class="a4-container page-break">
+        <div class="sidebar-decor"></div>
+
+        <!-- Header with Logo & Barcode -->
+        <div class="flex justify-between items-start mb-8 border-b-2 border-slate-100 pb-4">
+            <img src="https://healthy-fuchsia-3ihbdasf2f-vpujuawyth.edgeone.dev/logo-new.png" alt="Vyntyra Logo" class="brand-logo h-12">
+            <div class="text-right">
+                <h1 class="text-3xl font-black text-slate-900">ANNEXURE B</h1>
+                <!-- Added Barcode -->
+                <div class="barcode opacity-80" style="font-size: 32px; margin-top: 5px; margin-bottom: 5px;">INV-2025-0VC1</div>
+                <p class="text-slate-500 text-sm font-medium">Terms & Conditions | Performance Reports</p>
+            </div>
+        </div>
+
+        <div class="text-sm text-slate-700 space-y-6">
+            
+            <!-- Terms Section -->
+            <div>
+                <h3 class="font-bold text-slate-900 mb-3 border-b border-slate-200 pb-1">1. Terms and Conditions</h3>
+                <ul class="list-decimal pl-5 space-y-2 text-xs leading-relaxed text-slate-600">
+                    <li><strong>Payment Terms:</strong> Full payment (₹4,999) is due upon receipt of this invoice to initiate the handover of credentials and source code.</li>
+                    <li><strong>Source Code Maintenance:</strong> As per the request, we will maintain the source code in our servers for the agreed period. If maintenance is needed, we are here to help you out.</li>
+                    <li><strong>Content Responsibility:</strong> The Client is responsible for providing all final text, images, and branding assets. Vyntyra is not liable for copyright issues regarding assets provided by the Client.</li>
+                    <li><strong>Intellectual Property:</strong> Upon full payment, all rights to the website design and code are transferred to the Client. Vyntyra retains the right to display the project in its portfolio.</li>
+                    <li><strong>Limitation of Liability:</strong> Vyntyra Consultancy Services Pvt. Ltd. shall not be liable for any indirect, special, or consequential damages arising out of the use of the website.</li>
+                    <li><strong>Third-Party Services:</strong> Vyntyra is not responsible for downtimes caused by third-party providers (Vercel, Netlify, Google Maps APIs) beyond our control.</li>
+                </ul>
+            </div>
+
+            <!-- Performance Reports Section -->
+            <div>
+                <h3 class="font-bold text-slate-900 mb-4 border-b border-slate-200 pb-1">2. Attached Performance Reports</h3>
+                <p class="text-xs text-slate-500 mb-4">
+                    The following performance metrics have been verified using Google Lighthouse and PageSpeed Insights (Reports attached).
+                </p>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Lighthouse Card -->
+                    <div class="metric-card">
+                        <div class="metric-score">100</div>
+                        <h4 class="font-bold text-slate-900 text-sm">Google Lighthouse</h4>
+                        <p class="text-[10px] text-slate-500 mt-1">Mobile Performance Score</p>
+                        <div class="mt-3 text-[10px] text-slate-400 bg-white p-2 rounded border border-slate-100">
+                            SEO: 100 | Accessibility: 94<br>Best Practices: 96
+                        </div>
+                    </div>
+
+                    <!-- PageSpeed Card -->
+                    <div class="metric-card">
+                        <div class="metric-score">99</div>
+                        <h4 class="font-bold text-slate-900 text-sm">PageSpeed Insights</h4>
+                        <p class="text-[10px] text-slate-500 mt-1">Desktop Performance Score</p>
+                        <div class="mt-3 text-[10px] text-slate-400 bg-white p-2 rounded border border-slate-100">
+                            Speed Index: 0.7s | FCP: 0.6s<br>Core Web Vitals: Good
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 p-3 bg-slate-50 border border-slate-200 rounded text-[10px] text-slate-500 italic">
+                    * Metrics captured on 03/12/2025 via Google PageSpeed Insights. Full PDF reports are attached to the delivery email.
+                </div>
+            </div>
+
+            <!-- Final Signoff -->
+            <div class="absolute bottom-[25mm] left-[25mm] right-[25mm] pt-6 border-t border-slate-300 z-15">
+                <div class="grid grid-cols-2 gap-10">
+                    <div>
+                        <div class="h-24 border-b border-slate-400 mb-2"></div>
+                        <p class="font-bold text-xs text-slate-900">Authorized Signatory</p>
+                        <p class="text-[10px] text-slate-500">Vyntyra Consultancy Services Pvt. Ltd.</p>
+                    </div>
+                    <div>
+                        <div class="h-24 border-b border-slate-400 mb-2"></div>
+                        <p class="font-bold text-xs text-slate-900">Client Acceptance</p>
+                        <p class="text-[10px] text-slate-500">Ignite Wheels Car Rentals</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="page-footer">
+            <p class="text-xs text-slate-400">
+                &copy; <span id="year3"></span> VYNTYRA CONSULTANCY SERVICES PVT.LTD. All rights reserved.<br>
+                <span class="font-bold text-slate-500">Computer Generated Invoice.</span> Subject to terms and conditions.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-GB', dateOptions);
+        
+        const currentYear = new Date().getFullYear();
+        document.getElementById('year').textContent = currentYear;
+        document.getElementById('year2').textContent = currentYear;
+        document.getElementById('year3').textContent = currentYear;
+    </script>
+</body>
+</html>
