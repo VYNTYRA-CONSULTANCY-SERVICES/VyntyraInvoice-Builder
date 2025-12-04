@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vyntyra Invoice Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Libre+Barcode+39+Text&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Global Reset */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        /* Print Setup - Hides the sidebar and shows only the invoice */
+        @media print {
+            @page {
+                size: A4;
+                margin: 0;
+            }
+            body {
+                background-color: white;
+                overflow: visible !important;
+                height: auto !important;
+            }
+            #app-container {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            #sidebar, #preview-controls {
+                display: none !important;
+            }
+            #preview-pane {
+                background: white !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                height: auto !important;
+                display: block !important;
+            }
+            .a4-container {
+                margin: 0 !important;
+                box-shadow: none !important;
+                page-break-after: always;
+                transform: none !important;
+                width: 210mm !important;
+                height: 296mm !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+
+        /* Screen Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Invoice Template Styles (Preserved from Invoice.html) */
+        .barcode {
+            font-family: 'Libre Barcode 39 Text', cursive;
+            font-size: 48px;
+            color: #333;
+            line-height: 1;
+        }
+
+        .a4-container {
+            width: 210mm;
+            height: 296mm;
+            background: white;
+            margin: 0 auto 20px auto;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            padding: 15mm 15mm 25mm 20mm;
+            /* Scale for preview on small screens if needed, handled by JS or CSS transform */
+            transform-origin: top center;
+        }
+
+        .sidebar-decor {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 12mm;
+            height: 100%;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            z-index: 10;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 120px;
+            color: rgba(0,0,0,0.03);
+            font-weight: 800;
+            z-index: 0;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .brand-logo {
+            max-height: 80px;
+            width: auto;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+
+        .metric-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .metric-score {
+            font-size: 24px;
+            font-weight: 800;
+            color: #10b981;
+            border: 4px solid #10b981;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px auto;
+        }
+
+        .page-footer {
+            position: absolute;
+            bottom: 10mm;
+            left: 0;
+            width: 100%;
+            padding-left: 20mm;
+            padding-right: 15mm;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Video Background -->
+<video autoplay muted loop id="bg-video" class="fixed top-0 left-0 min-w-full min-h-full object-cover -z-10">
+    <source src="assets/videos/background.mp4" type="video/mp4">
+</video>
+
+<div id="app-container" class="flex h-full">
+    
+    <!-- SIDEBAR: ADMIN FORM -->
+    <aside id="sidebar" class="w-[400px] bg-white border-r border-gray-200 flex flex-col h-full shadow-xl z-20">
+        <div class="p-5 border-b border-gray-200 bg-slate-900 text-white">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice"></i> Invoice Maker
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Vyntyra Consultancy Services</p>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-5 space-y-6">
+            
+            <!-- Section: Invoice Details -->
+            <div class="space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider border-b pb-1">Invoice Details</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Invoice #</label>
+                        <input type="text" id="input_invoice_no" value="INV-2025-0VC1" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateInvoice()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Date</label>
+                        <input type="date" id="input_date" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateInvoice()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Client Details -->
+            <div class="space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider border-b pb-1">Client Details</h3>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Company / Client Name</label>
+                    <input type="text" id="input_client_company" value="Ignite Wheels Car Rentals" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateInvoice()">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Attention To</label>
+                    <input type="text" id="input_client_attn" value="Attn: Asif Mohammed" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateInvoice()">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Address</label>
+                    <textarea id="input_client_address" rows="3" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateInvoice()">Shiridhi Sai Nagar, Chandhrayyaya Colony, Balaga
+Srikakulam, Andhra Pradesh 532001</textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Contact Info (Phone/Email)</label>
+                    <textarea id="input_client_contact" rows="2" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateInvoice()">📞 +91 7093393435, +91 7093350435
+📧 ignitewheelsselfdrivercars@gmail.com</textarea>
+                </div>
+            </div>
+
+            <!-- Section: Payment Settings -->
+            <div class="space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider border-b pb-1">Payment Settings</h3>
+                
+                <div class="flex gap-4 mb-2">
+                    <label class="flex items-center text-xs">
+                        <input type="radio" name="qr_mode" value="upi" checked onchange="toggleQrMode()" class="mr-1"> Generate UPI QR
+                    </label>
+                    <label class="flex items-center text-xs">
+                        <input type="radio" name="qr_mode" value="image" onchange="toggleQrMode()" class="mr-1"> Upload QR Image
+                    </label>
+                </div>
+
+                <div id="qr_upi_input">
+                    <label class="block text-xs font-medium text-gray-700 mb-1">UPI ID</label>
+                    <input type="text" id="input_upi_id" value="9390515106@upi" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateInvoice()">
+                    
+                    <div class="mt-2 flex gap-4">
+                        <label class="flex items-center text-xs">
+                            <input type="radio" name="qr_amount_mode" value="fixed" checked onchange="updateInvoice()" class="mr-1"> Fixed Amount
+                        </label>
+                        <label class="flex items-center text-xs">
+                            <input type="radio" name="qr_amount_mode" value="any" onchange="updateInvoice()" class="mr-1"> Any Amount
+                        </label>
+                    </div>
+                </div>
+
+                <div id="qr_image_input" class="hidden">
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Upload QR Code</label>
+                    <input type="file" id="input_qr_image" accept="image/*" class="w-full text-xs" onchange="handleImageUpload(this, 'qr_code_img')">
+                </div>
+            </div>
+
+            <!-- Section: Signatures -->
+            <div class="space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider border-b pb-1">Signatures</h3>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Authorized Signatory (Vyntyra)</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="file" id="input_sig_auth" accept="image/*" class="w-full text-xs" onchange="handleImageUpload(this, 'sig_auth_img_1', 'sig_auth_img_2')">
+                        <button onclick="clearImage('input_sig_auth', 'sig_auth_img_1', 'sig_auth_img_2')" class="text-red-500 hover:text-red-700 px-2" title="Clear Signature">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Client Acceptance</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="file" id="input_sig_client" accept="image/*" class="w-full text-xs" onchange="handleImageUpload(this, 'sig_client_img_1', 'sig_client_img_2')">
+                        <button onclick="clearImage('input_sig_client', 'sig_client_img_1', 'sig_client_img_2')" class="text-red-500 hover:text-red-700 px-2" title="Clear Signature">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button onclick="generateSignatureLink()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors text-xs mt-2">
+                    <i class="fa-solid fa-link"></i> Share Signing Link
+                </button>
+            </div>
+
+            <!-- Section: Annexure Details -->
+            <div class="space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider border-b pb-1">Annexure Content</h3>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Hosting Links (One per line)</label>
+                    <textarea id="input_hosting_links" rows="2" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateAnnexure()">https://ignitewheels.vercel.app/
+https://ignitewheels.netlify.app/</textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Future Phase Title</label>
+                    <input type="text" id="input_future_title" value='Addition of "Bike Rental" Page' class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateAnnexure()">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Future Phase Description</label>
+                    <textarea id="input_future_desc" rows="3" class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" oninput="updateAnnexure()">As agreed within this deal, Vyntyra Consultancy Services commits to designing and developing one (1) additional webpage dedicated to <strong>Bike Rentals</strong>. This will be integrated into the existing website in a future update upon client request, at <strong>no additional cost</strong>.</textarea>
+                </div>
+
+                <div class="border-t pt-2 mt-2">
+                    <h4 class="text-xs font-bold text-slate-800 mb-2">Service & Warranty</h4>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <input type="text" id="input_service_title" value="Extended Coverage" class="w-full p-2 border rounded text-xs" placeholder="Title" oninput="updateAnnexure()">
+                        <input type="text" id="input_service_duration" value="6 Months" class="w-full p-2 border rounded text-xs" placeholder="Duration" oninput="updateAnnexure()">
+                    </div>
+                    <textarea id="input_service_desc" rows="2" class="w-full p-2 border rounded text-xs" placeholder="Description" oninput="updateAnnexure()">From date of submission. Covers bug fixes & stability.</textarea>
+                </div>
+
+                <div class="border-t pt-2 mt-2">
+                    <h4 class="text-xs font-bold text-slate-800 mb-2">Performance Reports</h4>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                            <label class="text-[10px] text-gray-500">Mobile Score</label>
+                            <input type="number" id="input_perf_mobile_score" value="100" class="w-full p-1 border rounded text-xs" oninput="updateAnnexure()">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500">Desktop Score</label>
+                            <input type="number" id="input_perf_desktop_score" value="99" class="w-full p-1 border rounded text-xs" oninput="updateAnnexure()">
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <input type="text" id="input_perf_mobile_details" value="SEO: 100 | Accessibility: 94 | Best Practices: 96" class="w-full p-1 border rounded text-xs" placeholder="Mobile Details" oninput="updateAnnexure()">
+                        <input type="text" id="input_perf_mobile_link" class="w-full p-1 border rounded text-xs" placeholder="Mobile Report URL (Optional)" oninput="updateAnnexure()">
+                        
+                        <input type="text" id="input_perf_desktop_details" value="Speed Index: 0.7s | FCP: 0.6s | Core Web Vitals: Good" class="w-full p-1 border rounded text-xs" placeholder="Desktop Details" oninput="updateAnnexure()">
+                        <input type="text" id="input_perf_desktop_link" class="w-full p-1 border rounded text-xs" placeholder="Desktop Report URL (Optional)" oninput="updateAnnexure()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Line Items -->
+            <div class="space-y-3">
+                <div class="flex justify-between items-center border-b pb-1">
+                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Line Items</h3>
+                    <button onclick="addItem()" class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 font-medium">+ Add Item</button>
+                </div>
+                <div id="items_container" class="space-y-4">
+                    <!-- Items will be injected here by JS -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Actions Footer -->
+        <div class="p-4 border-t border-gray-200 bg-gray-50 space-y-2">
+            <!-- Admin Auth -->
+            <div id="admin_auth_panel" class="mb-3 p-2 bg-slate-100 rounded border border-slate-200">
+                <label class="block text-xs font-bold text-slate-700 mb-1">Admin Access Required</label>
+                <div class="flex gap-2">
+                    <input type="password" id="input_admin_pass" class="w-full p-1.5 border rounded text-xs focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter Password">
+                    <button onclick="verifyAdmin()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 rounded text-xs font-bold transition-colors">Unlock</button>
+                </div>
+                <p id="auth_msg" class="text-[10px] text-red-500 mt-1 hidden font-bold"></p>
+            </div>
+
+            <button id="btn_print" onclick="window.print()" disabled class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors opacity-50 cursor-not-allowed">
+                <i class="fa-solid fa-print"></i> Print / Save PDF
+            </button>
+            <button id="btn_drive" onclick="saveToDrive()" disabled class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors opacity-50 cursor-not-allowed">
+                <i class="fa-brands fa-google-drive"></i> Save to Drive
+            </button>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btn_whatsapp" onclick="shareWhatsapp()" disabled class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors text-sm opacity-50 cursor-not-allowed">
+                    <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                </button>
+                <button id="btn_email" onclick="shareEmail()" disabled class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors text-sm opacity-50 cursor-not-allowed">
+                    <i class="fa-solid fa-envelope"></i> Email
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- PREVIEW PANE -->
+    <main id="preview-pane" class="flex-1 bg-black/40 overflow-y-auto p-8 flex justify-center">
+        
+        <!-- WRAPPER FOR SCALING -->
+        <div id="invoice-wrapper" class="transform origin-top scale-90">
+            
+            <!-- ========================== PAGE 1: INVOICE ========================== -->
+            <div class="a4-container">
+                <div class="sidebar-decor"></div>
+                <div class="watermark">VYNTYRA</div>
+
+                <!-- Header -->
+                <div class="flex justify-between items-start mb-1 relative z-10">
+                    <div>
+                        <img src="https://healthy-fuchsia-3ihbdasf2f-vpujuawyth.edgeone.dev/logo-new.png" alt="Vyntyra Logo" class="brand-logo">
+                        <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-none">VYNTYRA</h2>
+                        <p class="text-[15px] font-bold text-slate-500 tracking-widest uppercase mb-3">Consultancy Services Pvt. Ltd.</p>
+                        <div class="text-xs text-slate-600 leading-relaxed max-w-[250px]">
+                            Unit no 601, 5th Floor, Grand Palace,<br>
+                            Plot no 238 & 239, Dwaraka Nagar,<br>
+                            Visakhapatnam, AP 530016.<br>
+                            <strong>+91 9390515106</strong>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <h1 class="text-5xl font-black text-slate-200 uppercase tracking-tighter mb-2">Invoice</h1>
+                        <div class="barcode opacity-80 disp_invoice_no_text">INV-2025-0VC1</div>
+                        <div class="mt-4 grid grid-cols-1 gap-1 text-sm">
+                            <div class="flex justify-end gap-4">
+                                <span class="font-semibold text-slate-400 uppercase text-xs pt-1">Date</span>
+                                <span class="font-bold text-slate-800" id="disp_date"></span>
+                            </div>
+                            <div class="flex justify-end gap-4">
+                                <span class="font-semibold text-slate-400 uppercase text-xs pt-1">Invoice #</span>
+                                <span class="font-bold text-slate-800 disp_invoice_no_text">INV-2025-0VC1</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bill To Section -->
+                <div class="bg-slate-50 rounded-r-xl border-l-4 border-slate-800 p-5 mb-8 relative z-10">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Billed To Client</h3>
+                    <div class="text-lg font-bold text-slate-900" id="disp_client_company">Ignite Wheels Car Rentals</div>
+                    <div class="text-slate-600 text-sm mt-1">
+                        <div id="disp_client_attn">Attn: Asif Mohammed</div>
+                        <div id="disp_client_address" class="whitespace-pre-line">Shiridhi Sai Nagar, Chandhrayyaya Colony, Balaga
+                        Srikakulam, Andhra Pradesh 532001</div>
+                    </div>
+                    <div class="text-slate-600 text-xs mt-2 pt-2 border-t border-slate-200" id="disp_client_contact">
+                        <div class="font-medium">📞 +91 7093393435, +91 7093350435</div>
+                        <div>📧 ignitewheelsselfdrivercars@gmail.com</div>
+                    </div>
+                </div>
+
+                <!-- Line Items -->
+                <div class="relative z-10">
+                    <table class="w-full mb-8">
+                        <thead>
+                            <tr class="border-b-2 border-slate-800">
+                                <th class="py-2 text-left font-bold text-slate-900 text-sm uppercase tracking-wider w-2/3">Description</th>
+                                <th class="py-2 text-right font-bold text-slate-900 text-sm uppercase tracking-wider">Amount (INR)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm" id="disp_items_body">
+                            <!-- Items injected here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Totals -->
+                <div class="absolute bottom-[30mm] left-0 w-full pl-[1mm] pr-[10mm] flex justify-end z-20">
+                    <div class="w-2/5 bg-slate-900 text-white rounded-lg p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-2 text-sm text-slate-300">
+                            <span>Subtotal</span>
+                            <span id="disp_subtotal">₹4,999.00</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-4 text-xs text-emerald-400">
+                            <span>Discount/Adjustments</span>
+                            <span>Included</span>
+                        </div>
+                        <div class="border-t border-slate-700 pt-4 flex justify-between items-end">
+                            <div>
+                                <span class="block text-xs uppercase text-slate-400">Total Payable</span>
+                                <span class="text-3xl font-bold" id="disp_total">₹4,999</span>
+                            </div>
+                            <div class="text-right text-xs text-slate-400">
+                                Inclusive of all<br>services & charges
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="page-footer">
+                    <p class="text-xs text-slate-400">
+                        &copy; <span class="year-span"></span> VYNTYRA CONSULTANCY SERVICES PVT.LTD. All rights reserved.<br>
+                        <span class="font-bold text-slate-500">Computer Generated Invoice.</span> Subject to terms and conditions.
+                    </p>
+                    <p class="text-[8px] text-slate-300 mt-1 font-mono break-all unique-id-display"></p>
+                </div>
+            </div>
+
+            <!-- ========================== PAGE 2: ANNEXURE A ========================== -->
+            <div class="a4-container page-break">
+                <div class="sidebar-decor"></div>
+
+                <!-- Header with Logo & Barcode -->
+                <div class="flex justify-between items-start mb-8 border-b-2 border-slate-100 pb-4">
+                    <img src="https://healthy-fuchsia-3ihbdasf2f-vpujuawyth.edgeone.dev/logo-new.png" alt="Vyntyra Logo" class="brand-logo h-12">
+                    <div class="text-right">
+                        <h1 class="text-3xl font-black text-slate-900">ANNEXURE A</h1>
+                        <div class="barcode opacity-80 disp_invoice_no_text" style="font-size: 32px; margin-top: 5px; margin-bottom: 5px;">INV-2025-0VC1</div>
+                        <p class="text-slate-500 text-sm font-medium">Scope of Work & Commitments</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6">
+                    <!-- 1. Hosting -->
+                    <div class="bg-white rounded-lg">
+                        <h3 class="flex items-center text-base font-bold text-slate-900 mb-2">
+                            <span class="bg-slate-900 text-white w-6 h-6 flex items-center justify-center rounded mr-3 text-xs">01</span>
+                            Hosting & Domain Deliverables
+                        </h3>
+                        <div class="ml-9 bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
+                            <p class="mb-2 font-semibold text-slate-700">Dual Cloud Platform Deployment:</p>
+                            <ul class="space-y-1 mb-3 text-xs" id="disp_hosting_links">
+                                <li class="flex items-center text-blue-600 underline">
+                                    <a href="https://ignitewheels.vercel.app/" target="_blank">https://ignitewheels.vercel.app/</a>
+                                </li>
+                                <li class="flex items-center text-blue-600 underline">
+                                    <a href="https://ignitewheels.netlify.app/" target="_blank">https://ignitewheels.netlify.app/</a>
+                                </li>
+                            </ul>
+                            <p class="text-[10px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-100">
+                                <strong>Note:</strong> Custom domains must be purchased by the client. We provide configuration support.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 2. Future Phase -->
+                    <div>
+                        <h3 class="flex items-center text-base font-bold text-slate-900 mb-2">
+                            <span class="bg-indigo-600 text-white w-6 h-6 flex items-center justify-center rounded mr-3 text-xs">02</span>
+                            Future Phase Commitment
+                        </h3>
+                        <div class="ml-9 border border-indigo-100 bg-indigo-50 p-4 rounded-lg">
+                            <div class="flex items-start">
+                                <div class="text-indigo-600 mt-1 mr-3">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-indigo-900 text-sm mb-1" id="disp_future_title">Addition of "Bike Rental" Page</h4>
+                                    <p class="text-xs text-indigo-800 leading-relaxed" id="disp_future_desc">
+                                        As agreed within this deal, Vyntyra Consultancy Services commits to designing and developing one (1) additional webpage dedicated to <strong>Bike Rentals</strong>. This will be integrated into the existing website in a future update upon client request, at <strong>no additional cost</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Service Terms -->
+                    <div>
+                        <h3 class="flex items-center text-base font-bold text-slate-900 mb-2">
+                            <span class="bg-slate-900 text-white w-6 h-6 flex items-center justify-center rounded mr-3 text-xs">03</span>
+                            Service & Warranty Terms
+                        </h3>
+                        <div class="ml-9 grid grid-cols-2 gap-4">
+                            <div class="border border-emerald-100 bg-emerald-50 p-3 rounded-lg">
+                                <h4 class="font-bold text-emerald-800 text-xs mb-1" id="disp_service_title">Extended Coverage</h4>
+                                <div class="text-xl font-bold text-emerald-600 mb-1" id="disp_service_duration">6 Months</div>
+                                <p class="text-[10px] text-emerald-700" id="disp_service_desc">From date of submission. Covers bug fixes & stability.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment QR Section -->
+                    <div class="mt-4 border-t border-dashed border-slate-200 pt-6">
+                        <div class="flex items-center justify-between bg-slate-900 text-white p-5 rounded-xl shadow-lg">
+                            <div>
+                                <h3 class="text-lg font-bold mb-1">Scan to Pay</h3>
+                                <p class="text-slate-400 text-xs mb-3">UPI: GPay, PhonePe, Paytm</p>
+                                <div class="text-xs font-mono bg-slate-800 px-3 py-1 rounded inline-block">
+                                    <span class="text-emerald-400">9390515106@upi</span>
+                                </div>
+                            </div>
+                            <div class="bg-white p-2 rounded-lg">
+                                <img id="qr_code_img" src="" alt="Payment QR Code" class="w-24 h-24 object-contain">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="page-footer">
+                    <p class="text-xs text-slate-400">
+                        &copy; <span class="year-span"></span> VYNTYRA CONSULTANCY SERVICES PVT.LTD. All rights reserved.<br>
+                        <span class="font-bold text-slate-500">Computer Generated Invoice.</span> Subject to terms and conditions.
+                    </p>
+                    <p class="text-[8px] text-slate-300 mt-1 font-mono break-all unique-id-display"></p>
+                </div>
+            </div>
+
+            <!-- ========================== PAGE 3: ANNEXURE B ========================== -->
+            <div class="a4-container page-break">
+                <div class="sidebar-decor"></div>
+
+                <!-- Header with Logo & Barcode -->
+                <div class="flex justify-between items-start mb-8 border-b-2 border-slate-100 pb-4">
+                    <img src="https://healthy-fuchsia-3ihbdasf2f-vpujuawyth.edgeone.dev/logo-new.png" alt="Vyntyra Logo" class="brand-logo h-12">
+                    <div class="text-right">
+                        <h1 class="text-3xl font-black text-slate-900">ANNEXURE B</h1>
+                        <div class="barcode opacity-80 disp_invoice_no_text" style="font-size: 32px; margin-top: 5px; margin-bottom: 5px;">INV-2025-0VC1</div>
+                        <p class="text-slate-500 text-sm font-medium">Terms & Conditions | Performance Reports</p>
+                    </div>
+                </div>
+
+                <div class="text-sm text-slate-700 space-y-6">
+                    
+                    <!-- Terms Section -->
+                    <div>
+                        <h3 class="font-bold text-slate-900 mb-3 border-b border-slate-200 pb-1">1. Terms and Conditions</h3>
+                        <ul class="list-decimal pl-5 space-y-2 text-xs leading-relaxed text-slate-600">
+                            <li><strong>Payment Terms:</strong> Full payment (<span class="disp_total_text">₹4,999</span>) is due upon receipt of this invoice to initiate the handover of credentials and source code.</li>
+                            <li><strong>Source Code Maintenance:</strong> As per the request, we will maintain the source code in our servers for the agreed period. If maintenance is needed, we are here to help you out.</li>
+                            <li><strong>Content Responsibility:</strong> The Client is responsible for providing all final text, images, and branding assets. Vyntyra is not liable for copyright issues regarding assets provided by the Client.</li>
+                            <li><strong>Intellectual Property:</strong> Upon full payment, all rights to the website design and code are transferred to the Client. Vyntyra retains the right to display the project in its portfolio.</li>
+                            <li><strong>Limitation of Liability:</strong> Vyntyra Consultancy Services Pvt. Ltd. shall not be liable for any indirect, special, or consequential damages arising out of the use of the website.</li>
+                            <li><strong>Third-Party Services:</strong> Vyntyra is not responsible for downtimes caused by third-party providers (Vercel, Netlify, Google Maps APIs) beyond our control.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Performance Reports Section -->
+                    <div>
+                        <h3 class="font-bold text-slate-900 mb-4 border-b border-slate-200 pb-1">2. Attached Performance Reports</h3>
+                        <p class="text-xs text-slate-500 mb-4">
+                            The following performance metrics have been verified using Google Lighthouse and PageSpeed Insights (Reports attached).
+                        </p>
+
+                        <div class="grid grid-cols-2 gap-6">
+                            <!-- Lighthouse Card -->
+                            <div class="metric-card">
+                                <div class="metric-score" id="disp_perf_mobile_score">100</div>
+                                <h4 class="font-bold text-slate-900 text-sm">Google Lighthouse</h4>
+                                <p class="text-[10px] text-slate-500 mt-1">Mobile Performance Score</p>
+                                <div class="mt-3 text-[10px] text-slate-400 bg-white p-2 rounded border border-slate-100" id="disp_perf_mobile_details">
+                                    SEO: 100 | Accessibility: 94<br>Best Practices: 96
+                                </div>
+                                <a id="link_perf_mobile" href="#" target="_blank" class="block mt-2 text-[10px] text-blue-600 underline hidden"><i class="fa-solid fa-external-link-alt mr-1"></i> Verify Report</a>
+                            </div>
+
+                            <!-- PageSpeed Card -->
+                            <div class="metric-card">
+                                <div class="metric-score" id="disp_perf_desktop_score">99</div>
+                                <h4 class="font-bold text-slate-900 text-sm">PageSpeed Insights</h4>
+                                <p class="text-[10px] text-slate-500 mt-1">Desktop Performance Score</p>
+                                <div class="mt-3 text-[10px] text-slate-400 bg-white p-2 rounded border border-slate-100" id="disp_perf_desktop_details">
+                                    Speed Index: 0.7s | FCP: 0.6s<br>Core Web Vitals: Good
+                                </div>
+                                <a id="link_perf_desktop" href="#" target="_blank" class="block mt-2 text-[10px] text-blue-600 underline hidden"><i class="fa-solid fa-external-link-alt mr-1"></i> Verify Report</a>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-slate-50 border border-slate-200 rounded text-[10px] text-slate-500 italic">
+                            * Metrics captured on <span id="disp_metrics_date">03/12/2025</span> via Google PageSpeed Insights. Full PDF reports are attached to the delivery email.
+                        </div>
+                    </div>
+
+                    <!-- Final Signoff -->
+                    <div class="absolute bottom-[25mm] left-[25mm] right-[25mm] pt-6 border-t border-slate-300 z-15">
+                        <div class="grid grid-cols-2 gap-10">
+                            <div>
+                                <div class="h-24 border-b border-slate-400 mb-2 flex items-end justify-center overflow-hidden relative">
+                                    <img id="sig_auth_img_2" src="" class="max-h-full max-w-full object-contain hidden">
+                                </div>
+                                <p class="font-bold text-xs text-slate-900">Authorized Signatory</p>
+                                <p class="text-[10px] text-slate-500">Vyntyra Consultancy Services Pvt. Ltd.</p>
+                            </div>
+                            <div>
+                                <div class="h-24 border-b border-slate-400 mb-2 flex items-end justify-center overflow-hidden relative">
+                                    <img id="sig_client_img_2" src="" class="max-h-full max-w-full object-contain hidden">
+                                </div>
+                                <p class="font-bold text-xs text-slate-900">Client Acceptance</p>
+                                <p class="text-[10px] text-slate-500" id="disp_client_signoff">Ignite Wheels Car Rentals</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="page-footer">
+                    <p class="text-xs text-slate-400">
+                        &copy; <span class="year-span"></span> VYNTYRA CONSULTANCY SERVICES PVT.LTD. All rights reserved.<br>
+                        <span class="font-bold text-slate-500">Computer Generated Invoice.</span> Subject to terms and conditions.
+                    </p>
+                    <p class="text-[8px] text-slate-300 mt-1 font-mono break-all unique-id-display"></p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script>
+    // Initial Data
+    let sessionRandomId = '';
+    let items = [
+        {
+            description: '"Standard Static" Web Development Package',
+            details: '&bull; 5 Pages (Mobile Responsive), <span class="font-semibold text-slate-700">Video Background</span>, Social Links\n&bull; <span class="font-semibold text-slate-700">Lighthouse Performance & Google SEO</span>\n&bull; Tech Stack: HTML, CSS, JavaScript\n&bull; <span class="text-emerald-600 font-medium">IGST (5%) Included</span>',
+            amount: 4999.00
+        },
+        {
+            description: 'Premium Add-ons & Integration Bundle',
+            details: '&bull; Google Maps Integration\n&bull; Performance Suite (Google Search Console)\n&bull; Dual Cloud Hosting Setup (Vercel & Netlify)\n&bull; <span class="text-xs text-emerald-600 font-bold mt-1">★ REFERRAL OFFER APPLIED (SU25BVCS)</span>',
+            amount: 0
+        }
+    ];
+
+    // Initialize
+    window.onload = function() {
+        // Generate Session ID
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+        for (let i = 0; i < 30; i++) {
+            sessionRandomId += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        // Set Date
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('input_date').value = today;
+        
+        // Set Year
+        const year = new Date().getFullYear();
+        document.querySelectorAll('.year-span').forEach(el => el.textContent = year);
+
+        // Render Items
+        renderItems();
+        updateInvoice();
+    };
+
+    function renderItems() {
+        const container = document.getElementById('items_container');
+        container.innerHTML = '';
+        
+        items.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 p-3 rounded border border-gray-200 relative group';
+            div.innerHTML = `
+                <button onclick="removeItem(${index})" class="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                <div class="mb-2">
+                    <input type="text" value="${item.description}" oninput="updateItem(${index}, 'description', this.value)" class="w-full text-xs font-bold bg-transparent border-b border-transparent focus:border-blue-300 outline-none" placeholder="Item Description">
+                </div>
+                <div class="mb-2">
+                    <textarea oninput="updateItem(${index}, 'details', this.value)" class="w-full text-xs text-gray-500 bg-transparent border border-transparent focus:border-blue-300 outline-none resize-none" rows="3" placeholder="Details (HTML allowed)">${item.details.replace(/<br>/g, '\n')}</textarea>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold">₹</span>
+                    <input type="number" value="${item.amount}" oninput="updateItem(${index}, 'amount', this.value)" class="w-24 text-xs font-bold bg-transparent border-b border-transparent focus:border-blue-300 outline-none">
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function addItem() {
+        items.push({
+            description: 'New Service Item',
+            details: '&bull; Service Detail 1',
+            amount: 0
+        });
+        renderItems();
+        updateInvoice();
+    }
+
+    function removeItem(index) {
+        items.splice(index, 1);
+        renderItems();
+        updateInvoice();
+    }
+
+    function updateItem(index, field, value) {
+        items[index][field] = value;
+        updateInvoice();
+    }
+
+    function updateInvoice() {
+        // 1. Update Text Fields
+        const invoiceNo = document.getElementById('input_invoice_no').value;
+        const dateVal = document.getElementById('input_date').value;
+        const clientCompany = document.getElementById('input_client_company').value;
+        const clientAttn = document.getElementById('input_client_attn').value;
+        const clientAddress = document.getElementById('input_client_address').value;
+        const clientContact = document.getElementById('input_client_contact').value;
+
+        // Update DOM
+        document.querySelectorAll('.disp_invoice_no_text').forEach(el => el.textContent = invoiceNo);
+        
+        if(dateVal) {
+            const dateObj = new Date(dateVal);
+            document.getElementById('disp_date').textContent = dateObj.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+            document.getElementById('disp_metrics_date').textContent = dateObj.toLocaleDateString('en-GB');
+        }
+
+        document.getElementById('disp_client_company').textContent = clientCompany;
+        document.getElementById('disp_client_signoff').textContent = clientCompany;
+        document.getElementById('disp_client_attn').textContent = clientAttn;
+        document.getElementById('disp_client_address').textContent = clientAddress;
+        
+        // Handle HTML in contact info (newlines to <br>)
+        document.getElementById('disp_client_contact').innerHTML = clientContact.replace(/\n/g, '<br>');
+
+        // 2. Update Items Table
+        const tbody = document.getElementById('disp_items_body');
+        tbody.innerHTML = '';
+        let total = 0;
+
+        items.forEach(item => {
+            const amt = parseFloat(item.amount) || 0;
+            total += amt;
+            
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-slate-100';
+            
+            // Format details: replace newlines with <br> if user typed them, or trust HTML
+            let detailsHtml = item.details.replace(/\n/g, '<br>');
+
+            tr.innerHTML = `
+                <td class="py-4 pr-4">
+                    <div class="font-bold text-slate-800 text-base">${item.description}</div>
+                    <div class="text-slate-500 mt-1 space-y-1">
+                        ${detailsHtml.split('\n').map(line => `<p>${line}</p>`).join('')}
+                    </div>
+                </td>
+                <td class="py-4 text-right font-medium ${amt === 0 ? 'text-emerald-600' : 'text-slate-700'} align-top">
+                    ${amt === 0 ? 'FREE' : amt.toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // 3. Update Totals
+        const totalFormatted = '₹' + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
+        const totalIntFormatted = '₹' + total.toLocaleString('en-IN', {maximumFractionDigits: 0});
+        
+        document.getElementById('disp_subtotal').textContent = totalFormatted;
+        document.getElementById('disp_total').textContent = totalIntFormatted;
+        document.querySelectorAll('.disp_total_text').forEach(el => el.textContent = totalIntFormatted);
+
+        // 4. Update QR Code
+        updateQrCode(total);
+
+        // 5. Update Unique ID
+        const cleanInvoice = invoiceNo.replace(/[^a-zA-Z0-9]/g, '');
+        const uniqueId = `${sessionRandomId}_${cleanInvoice}_${dateVal}_${total}`;
+        document.querySelectorAll('.unique-id-display').forEach(el => el.textContent = uniqueId);
+    }
+
+    function updateAnnexure() {
+        const links = document.getElementById('input_hosting_links').value.split('\n');
+        const title = document.getElementById('input_future_title').value;
+        const desc = document.getElementById('input_future_desc').value;
+
+        // Update Links
+        const linksContainer = document.getElementById('disp_hosting_links');
+        linksContainer.innerHTML = '';
+        links.forEach(link => {
+            if(link.trim()) {
+                const li = document.createElement('li');
+                li.className = 'flex items-center text-blue-600 underline';
+                li.innerHTML = `<a href="${link}" target="_blank">${link}</a>`;
+                linksContainer.appendChild(li);
+            }
+        });
+
+        // Update Future Phase
+        document.getElementById('disp_future_title').textContent = title;
+        document.getElementById('disp_future_desc').innerHTML = desc;
+
+        // Update Service & Warranty
+        document.getElementById('disp_service_title').textContent = document.getElementById('input_service_title').value;
+        document.getElementById('disp_service_duration').textContent = document.getElementById('input_service_duration').value;
+        document.getElementById('disp_service_desc').textContent = document.getElementById('input_service_desc').value;
+
+        // Update Performance Reports
+        const mobileScore = document.getElementById('input_perf_mobile_score').value;
+        const desktopScore = document.getElementById('input_perf_desktop_score').value;
+        
+        const mobileEl = document.getElementById('disp_perf_mobile_score');
+        const desktopEl = document.getElementById('disp_perf_desktop_score');
+        
+        mobileEl.textContent = mobileScore;
+        desktopEl.textContent = desktopScore;
+
+        // Color Logic
+        const setScoreColor = (el, score) => {
+            const s = parseInt(score) || 0;
+            let color = '#10b981'; // Green (60-100)
+            
+            if(s >= 0 && s < 40) {
+                color = '#ef4444'; // Red
+            } else if (s >= 40 && s < 60) {
+                color = '#eab308'; // Yellow
+            }
+            
+            el.style.color = color;
+            el.style.borderColor = color;
+        };
+
+        setScoreColor(mobileEl, mobileScore);
+        setScoreColor(desktopEl, desktopScore);
+        
+        // Handle details (replace | with <br> or just text)
+        const mobileDetails = document.getElementById('input_perf_mobile_details').value;
+        const desktopDetails = document.getElementById('input_perf_desktop_details').value;
+        
+        document.getElementById('disp_perf_mobile_details').innerHTML = mobileDetails.replace(/ \| /g, '<br>');
+        document.getElementById('disp_perf_desktop_details').innerHTML = desktopDetails.replace(/ \| /g, '<br>');
+
+        // Handle Links
+        const mobileLink = document.getElementById('input_perf_mobile_link').value;
+        const desktopLink = document.getElementById('input_perf_desktop_link').value;
+        
+        const mobileLinkEl = document.getElementById('link_perf_mobile');
+        if(mobileLink) {
+            mobileLinkEl.href = mobileLink;
+            mobileLinkEl.classList.remove('hidden');
+        } else {
+            mobileLinkEl.classList.add('hidden');
+        }
+
+        const desktopLinkEl = document.getElementById('link_perf_desktop');
+        if(desktopLink) {
+            desktopLinkEl.href = desktopLink;
+            desktopLinkEl.classList.remove('hidden');
+        } else {
+            desktopLinkEl.classList.add('hidden');
+        }
+    }
+
+    function toggleQrMode() {
+        const mode = document.querySelector('input[name="qr_mode"]:checked').value;
+        if(mode === 'upi') {
+            document.getElementById('qr_upi_input').classList.remove('hidden');
+            document.getElementById('qr_image_input').classList.add('hidden');
+        } else {
+            document.getElementById('qr_upi_input').classList.add('hidden');
+            document.getElementById('qr_image_input').classList.remove('hidden');
+        }
+        updateInvoice();
+    }
+
+    function updateQrCode(total) {
+        const mode = document.querySelector('input[name="qr_mode"]:checked').value;
+        const img = document.getElementById('qr_code_img');
+        
+        if(mode === 'upi') {
+            const upiId = document.getElementById('input_upi_id').value;
+            const amountMode = document.querySelector('input[name="qr_amount_mode"]:checked').value;
+            const upiName = 'VyntyraConsultancy';
+            
+            let qrData = `upi://pay?pa=${upiId}&pn=${upiName}&cu=INR`;
+            if(amountMode === 'fixed') {
+                qrData += `&am=${total}`;
+            }
+            
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+            img.src = qrUrl;
+        } 
+        // If mode is image, it's handled by handleImageUpload, we don't overwrite it here unless we want to reset
+    }
+
+    function handleImageUpload(input, ...targetIds) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                targetIds.forEach(id => {
+                    const img = document.getElementById(id);
+                    if(img) {
+                        img.src = e.target.result;
+                        img.classList.remove('hidden');
+                    }
+                });
+            }
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            // Clear if no file selected
+            targetIds.forEach(id => {
+                const img = document.getElementById(id);
+                if(img) {
+                    img.src = "";
+                    img.classList.add('hidden');
+                }
+            });
+        }
+    }
+
+    function clearImage(inputId, ...targetIds) {
+        const input = document.getElementById(inputId);
+        input.value = '';
+        handleImageUpload(input, ...targetIds);
+    }
+
+    function generateSignatureLink() {
+        // Mock functionality
+        const dummyLink = "https://vyntyra.com/sign/" + Math.random().toString(36).substring(7);
+        navigator.clipboard.writeText(dummyLink).then(() => {
+            alert("Unique signing link copied to clipboard!\n\n(Note: This is a demo link. In a real app, this would send the document to a backend service.)\n\nLink: " + dummyLink);
+        });
+    }
+
+    function shareWhatsapp() {
+        const client = document.getElementById('input_client_company').value;
+        const invoiceNo = document.getElementById('input_invoice_no').value;
+        const text = `Hello ${client},%0A%0APlease find attached the invoice ${invoiceNo} from Vyntyra Consultancy Services.%0A%0AThank you for your business!`;
+        window.open(`https://wa.me/?text=${text}`, '_blank');
+    }
+
+    function shareEmail() {
+        const client = document.getElementById('input_client_company').value;
+        const invoiceNo = document.getElementById('input_invoice_no').value;
+        const subject = `Invoice ${invoiceNo} - Vyntyra Consultancy Services`;
+        const body = `Dear ${client},%0D%0A%0D%0APlease find attached the invoice ${invoiceNo}.%0D%0A%0D%0ARegards,%0D%0AVyntyra Team`;
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    }
+
+    function saveToDrive() {
+        alert("To save to Google Drive:\n\n1. The Print dialog will open.\n2. In the 'Destination' dropdown, select 'Save to Google Drive' (if using Chrome).\n3. Or select 'Save as PDF' and manually upload the file to your Drive.");
+        window.print();
+    }
+
+    function verifyAdmin() {
+        const pass = document.getElementById('input_admin_pass').value;
+        const msg = document.getElementById('auth_msg');
+        
+        if(pass === 'Jamianil@2005') {
+            // Enable buttons
+            ['btn_print', 'btn_drive', 'btn_whatsapp', 'btn_email'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+            
+            // Hide auth panel or show success
+            document.getElementById('admin_auth_panel').innerHTML = '<div class="text-emerald-600 text-xs font-bold text-center py-2 bg-emerald-50 border border-emerald-200 rounded"><i class="fa-solid fa-check-circle"></i> Admin Verified</div>';
+        } else {
+            msg.textContent = 'Incorrect Password';
+            msg.classList.remove('hidden');
+        }
+    }
+</script>
+
+</body>
+</html>
